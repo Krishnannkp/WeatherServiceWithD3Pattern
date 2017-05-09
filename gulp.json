@@ -1,0 +1,1467 @@
+/// <binding />
+var gulp = require('gulp');
+var path = require('path');
+
+//******************************************************
+//
+//   BUILD REQUIRE
+//
+//******************************************************
+
+//https://github.com/gulpjs/gulp-util
+// Used for Logging, File/io, Buffering, and Errors
+var gulpUtil = require('gulp-util');
+
+//https://github.com/palantir/gulp-count
+// Used for Logging, File/io
+var gulpCount = require('gulp-count');
+
+//https://www.npmjs.com/package/gulp-debug
+// Used To Output Debug Statements In Build Process
+var debug = require('gulp-debug');
+
+//https://www.npmjs.com/package/del
+// Used To Delete Files / Folders
+var del = require('del');
+
+//https://www.npmjs.com/package/vinyl-paths
+// Used To Turn File Paths Into A Valid Stream
+var vinylPaths = require('vinyl-paths');
+
+//https://www.npmjs.com/package/gulp-filter
+// Filter Src Paths
+var gulpFilter = require('gulp-filter');
+
+//https://www.npmjs.com/package/gulp-rename
+// Used For File / Folder / Stream Renaming
+var rename = require("gulp-rename");
+
+//https://www.npmjs.com/package/merge-stream
+// Used To Merge Multiple Streams Together Into One
+var merge = require('merge-stream');
+
+//https://www.npmjs.com/package/gulp-inject
+// Used To Inject File Paths Into Files
+var inject = require('gulp-inject');
+
+//https://www.npmjs.com/package/run-sequence
+// Used To Run Tasks In An Order
+var runSequence = require('run-sequence');
+
+//https://www.npmjs.com/package/gulp-less
+// Used To Complile LESS Files
+var less = require('gulp-less');
+
+//https://www.npmjs.com/package/gulp-sourcemaps
+// Generate Source Maps For Compiled Files
+var sourcemaps = require('gulp-sourcemaps');
+
+//https://www.npmjs.com/package/gulp-typescript
+// Typescript Compilier
+var ts = require('gulp-typescript');
+
+//https://www.npmjs.com/package/gulp-tslint
+// Typescript Linter
+var tslint = require('gulp-tslint');
+
+//https://www.npmjs.com/package/gulp-replace
+// Regex Content Replacement
+var replace = require('gulp-replace');
+
+//https://www.npmjs.com/package/gulp-typedoc
+// Typescript Document Generator
+var typedoc = require("gulp-typedoc");
+
+//https://www.npmjs.com/package/gulp-sort
+// Sort Streams Becuase You Cant Cross The Streams
+var sort = require('gulp-sort');
+
+//https://www.npmjs.com/package/gulp-uglify
+// JS Minify
+var uglify = require('gulp-uglify');
+
+//https://www.npmjs.com/package/gulp-concat
+// Concatenates files
+var concat = require('gulp-concat');
+
+//https://www.npmjs.com/package/gulp-connect
+//  Serve without IIS- live reload
+var connect = require('gulp-connect');
+
+//https://www.npmjs.com/package/connect-pushstate
+// serve html5 with redirects to index
+var pushState = require('connect-pushstate');
+
+//https://www.npmjs.com/package/gulp-exec
+// Run Shell Commands
+var exec = require('gulp-exec');
+
+//https://www.npmjs.com/package/gulp-gitmodified
+// Filter To Only Changed Files
+var gitmodified = require('gulp-gitmodified');
+
+//https://www.npmjs.com/package/yargs
+// Command Line Args
+var argv = require('yargs').argv;
+
+//https://www.npmjs.com/package/gulp-if
+//Conditionally run a task
+var gulpif = require('gulp-if');
+
+//https://www.npmjs.com/package/gulp-check-file-naming-convention
+var checkFileName = require("gulp-check-file-naming-convention");
+
+//https://www.npmjs.com/package/gulp-angular-templatecache
+//Concatenates and registers AngularJS templates in the $templateCache
+var templateCache = require('gulp-angular-templatecache');
+
+//https://www.npmjs.com/package/gulp-cssmin
+//Minify all the css
+var cssmin = require('gulp-cssmin');
+
+
+//https://www.npmjs.com/package/gulp-ng-annotate
+//Annotate for mangling
+var ngAnnotate = require('gulp-ng-annotate');
+
+//https://www.npmjs.com/package/git-rev-sync
+//Git Commit Hash
+var gitRev = require('git-rev-sync');
+
+//https://www.npmjs.com/package/gulp-changed
+//Gulp Changed to watch for single file changes
+var gulpChanged = require('gulp-changed');
+
+//Gulp notify ties into native notifications
+var gulpNotify = require('gulp-notify');
+
+//https://github.com/straker/gulp-livingcss
+//Gulp livingcss
+var livingCss = require('gulp-livingcss');
+var marked = require('marked');
+
+var karma = require('karma').Server;
+
+
+//***************
+//
+// Global Vars
+//
+//***************
+
+var gEnvSettings = require('./build-env.json');
+var gEnv = {};
+
+//******************************************************
+//
+//   BUILD TASKS
+//
+//******************************************************
+
+gulp.task('build', function ( done) {
+
+    console.log("");
+
+    if (!gEnvSettings.hasOwnProperty(argv["env"])) {
+        console.log("Invalid Environment: \'" + argv["env"] + "\'");
+        console.log("");
+        console.log("gulp build --env=ENV_NAME");
+        console.log("");
+        console.log("Valid Enviorments: \n" + Object.keys(gEnvSettings).join(', '));
+        console.log("");
+        return -1;
+    } else {
+        gEnv = gEnvSettings[argv["env"]];
+        gEnv.env = argv["env"];
+        gEnv.version = fnGetVersion('3');
+        console.log("BUILDING \"" + argv["env"] + "\" VERSION: " + gEnv.version);
+    }
+
+    console.log("API1:[" + gEnv.api1 + "] "
+        + "API2:[" + gEnv.api2 + "] "
+        + "TrackJS:[" + (gEnv.trackJS ? 'T' : 'F') + "] "
+        + "MINIFY:[" + (gEnv.minify ? 'T' : 'F') + "] "
+        );
+
+    console.log("");
+    
+    var lBuildTasks = [
+          ['design3:typescript:reference-file', 'interactions:typescript:reference-file', 'canvas:typescript:reference-file', 'common:typescript:reference-file', 'web-api:typescript:reference-file', 'web-api2:typescript:reference-file']
+        , ['all:typescript:format']
+        , ['design3:lint:typescript', 'interactions:lint:typescript', 'canvas:lint:typescript', 'web-api:lint:typescript', 'common:lint:typescript']
+        , ['design3:less:reference-file', 'canvas:less:reference-file']
+        , ['design3:copy:source-to-debug']
+        , ['interactions:copy:source-to-debug']
+        , ['canvas:copy:source-to-debug']
+        , ['common:copy:source-to-debug']
+        , ['web-api:copy:source-to-debug']
+        , ['web-api2:copy:source-to-debug']
+        , ['design3:less:build']
+        , ['common:typescript:build'] 
+        , ['design3:typescript:build']
+        , ['interactions:typescript:build']
+        , ['canvas:typescript:build']
+        , ['web-api:typescript:build']
+        , ['web-api2:typescript:build']
+        , ['all:sourcemaps:update', 'design3:settings']
+        , ['design3:settings:aws-cache']
+    ];
+
+    if ( gEnv.minify ) {
+        //TODO: FIND WHY WE NEED TO CLEAN ON PROD BUILD
+        lBuildTasks.unshift( 'clean' );
+
+        lBuildTasks.push(
+            ['all:minify:less', 'all:miniuglify:js', 'all:copy:debug-to-prod']
+            , ['all:release-paths:update']
+            , ['all:inject-html:prod']
+            , ['clean:prod']);
+    } 
+    
+    lBuildTasks.push(['all:inject-html:debug']);
+    
+    if (gEnv.trackJS) {
+        lBuildTasks.push(['all:inject-trackjs']);
+    }
+
+
+    //https://github.com/OverZealous/run-sequence/issues/14
+    //Know when a runSequence (or sequence) is done
+    lBuildTasks.push( done );
+
+    runSequence.apply(null, lBuildTasks);
+
+});
+
+
+
+/********
+ * Unit test tasks
+ */
+
+//Main task to be used for local testing
+gulp.task('tdd', function( done ) {
+
+
+    runSequence('unit-tests:clean', 'unit-tests:watch', 'unit-tests:typescript', 'unit-tests-fixtures:typescript', 'karma:watch', done);
+
+});
+
+//Main task to be used for single-run testing on the server
+gulp.task('test', function( done) {
+
+    //Run unit tests against DEV3, any errors won't be logged, and it just needs to build with dev3
+    //Unit tests won't actually be reaching out to dev3 because we mock the backend
+
+    runSequence('unit-tests:clean', 'unit-tests:typescript', 'unit-tests-fixtures:typescript', 'karma:single', done);
+});
+
+//Watch for spec changes in the design3* folders
+gulp.task('unit-tests:watch',function(){
+    return gulp.watch(['./design3*/**/*.spec.ts'], ['unit-tests:typescript']);
+})
+
+//If typescript file changes then look for different file and compile TS file to 
+//builds/test which karma is watching for changes
+gulp.task('unit-tests:typescript', function(){
+    return gulp.src('./design3*/source/**/*.spec.ts', {base: './'}) //CHANGE NAME HERE TO RUN SINGLE TEST
+        .pipe(gulpChanged( './builds/test', {extension: '.js'}))
+        .pipe(ts({noImplicitAny: true, target: 'ES5', noEmitOnError: true}))
+        .pipe(gulp.dest('./builds/test'));
+});
+
+gulp.task('unit-tests-fixtures:typescript', function () {
+    return gulp.src('*.json', { cwd: 'design3.tests/fixtures/**' })
+        .pipe(rename({ dirname: '' }))
+        .pipe(debug({ title: 'FIXTURES:' }))
+        .pipe(gulp.dest('./builds/test/fixtures/'));
+});
+
+gulp.task('unit-tests:clean', function(done){
+    var lDelFiles = gulp.src([
+            './builds/test'])
+        .pipe(vinylPaths(del));
+
+    return lDelFiles;
+})
+
+/******
+ * Karma Tasks
+ */
+
+gulp.task('karma:watch', function(done){
+    new karma({
+        configFile: __dirname + '/karma.conf.js',
+        files: generateKarmaFiles(),
+        singleRun: false,
+        autoWatch: true
+    }, done).start();
+});
+
+
+gulp.task('karma:single', function(done ) {
+    new karma({
+        configFile: __dirname + '/karma.conf.js',
+        files: generateKarmaFiles(),
+        singleRun: false,
+        autoWatch: false
+    }, function(exitStatus) {
+        done(exitStatus? "There are failing unit tests": undefined);
+    }).start();
+});
+
+function generateKarmaFiles() {
+        var files = [
+        'builds/debug/source/library/angular.js',
+        'builds/debug/source/library/angular-translate.js',
+        'builds/debug/source/library/raven.js',
+        'builds/debug/source/library/tinycolor-min.js',
+        'builds/debug/source/library/*.js',
+        'builds/debug/source/library2/*.js',
+    ];
+
+    Array.prototype.push.apply( files, fnInjectPaths('common', true));
+    Array.prototype.push.apply( files, fnInjectPaths('web-api', true));
+    Array.prototype.push.apply( files, fnInjectPaths('web-api2', true));
+    Array.prototype.push.apply( files, fnInjectPaths('interactions', true));
+    Array.prototype.push.apply( files, fnInjectPaths('canvas', true));
+    Array.prototype.push.apply( files, fnInjectPaths('design', true));
+
+    var filesFinal = [];
+
+    //For all application files except .spec files use these settings
+    files.forEach( function(file) {
+        var temp = {
+            pattern: file,
+            watched: false,
+            nocache: true
+        }
+        filesFinal.push(temp);
+    })
+
+    var ts = { pattern: 'builds/debug/**/*.ts', watched: false, included: false};
+    filesFinal.push(ts);
+
+    var maps = {   pattern:'builds/debug/**/*.js.map', watched: false, included: false}
+    filesFinal.push(maps);
+
+    var lFixtures = { pattern: 'builds/test/fixtures/**/*.json', watched: false, served: true, included: true };
+    filesFinal.push(lFixtures);
+
+    //For spec files we want to watch for chances
+    filesFinal.push(
+        {
+            pattern: 'builds/test/**/*.spec.js',
+            watch: true,
+            nocache: true
+        }
+    )
+
+    return filesFinal;
+}
+
+
+/**
+ * Living CSS
+ */
+gulp.task('styleguide', ['design3:less:reference-file', 'canvas:less:reference-file', 'design3:less:build', 'living-css']);
+
+
+gulp.task('living-css', function() {
+    return gulp.src('design3.appDesign/source/less/**/*.less')
+            .pipe(livingCss('livingCss',{
+                template: 'livingCss/styleguide.hbs',
+                preprocess: function(context, template, Handlebars) {
+                    context.title = "Cricut Style Guide v0.0.0";
+                    context.footerHTML = "This is my footer&copy;&trade;&reg;";
+                    context.stylesheets = [
+                        "../builds/debug/styles/library/bootstrap.css",
+                        "../builds/debug/styles/library/bootstrap-theme.css",
+                        "../builds/debug/styles/library/cricut-icons.css",
+                        "../builds/debug/styles/library/font-awesome.css",
+                        "../builds/debug/styles/application/design3.css"
+                    ];
+                    return livingCss.utils.readFiles(['livingCss/section.hbs'], function( data, file) {
+                        var partialName = path.basename(file, path.extname(file));
+                        Handlebars.registerPartial(partialName, data);
+                    });
+                    
+                },
+                loadcss: false,
+                tags: {
+                    todo: function() {
+                        this.block.todos = this.block.todos || [];
+                        this.block.todos.push({
+                            value: marked(this.tag.description).replace(/[\n\r]+$/,''),
+                        });
+                        var section = this.sections[this.tag.description];
+                    },
+                    deprecation: function() {
+                        this.block.deprecations = this.block.deprecations || [];
+                        this.block.deprecations.push({
+                            value: marked(this.tag.description).replace(/[\n\r]+$/,''),
+                        });
+                        var section = this.sections[this.tag.description];
+                    }
+                }
+            }))
+            .pipe(gulp.dest('livingCss'));
+});
+
+
+
+gulp.task('format-code', function () {
+    return runSequence(['design3:typescript:format', 'interactions:typescript:format', 'common:typescript:format']);
+});
+
+//Basic serve task for those not using IIS
+gulp.task('serve', ['clean','build', 'connect', 'watch']);
+
+//generate the webserver
+gulp.task('connect', function () {
+
+    var root;
+    if (gEnv.minify) {
+        root = 'builds/release/';
+    } else {
+        root = 'builds/debug/';
+    }
+
+    connect.server({
+        root: root,
+        livereload: { port: 35739 },
+        middleware: function (connect, options) {
+            return [
+                pushState()
+            ];
+        },
+        port: argv.port || 9000  // Can Be 9000 or 900d9
+    });
+});
+
+//source for html and where to livereload from
+gulp.task('live-reload', function () {
+    return gulp.src('./builds/debug/*.html')
+        .pipe(connect.reload());
+});
+
+//what files to watch for live reload
+gulp.task('watch', function () {
+    return gulp.watch('./builds/debug/*.html', ['live-reload']);
+});
+
+/**
+ * Update settings with enviorment data.
+ */
+gulp.task('design3:settings', function () {
+
+    var lStreams = [];
+    if (gEnv.newRelic) {
+        lStreams.push(gulp.src('./builds/debug/source/library2/new-relic.js')
+                .pipe(replace(/(applicationID:)(".*)(")/g, '$1\"' + gEnv.newRelic.applicationID + '$3'))
+                .pipe(gulp.dest('./builds/debug/source/library2/')));
+    }
+    if (gEnv.userback) {
+        lStreams.push(gulp.src('./builds/debug/source/library2/userback.js')
+            .pipe(replace(/(access_token=)('.*)(')/g, '$1\'' + gEnv.userback + '$3'))
+            .pipe(gulp.dest('./builds/debug/source/library2/')));
+    }
+
+    lStreams.push(gulp.src(['./builds/debug/index.html'])
+            .pipe(replace(/<!--@@BASE_HREF-->/g, gEnv.html5Urls ? '<base href=\'/\' />' : ''))
+            .pipe(gulp.dest('./builds/debug/')));
+
+    lStreams.push(gulp.src(['./builds/debug/source/application/common/app/app-settings.js'])
+            .pipe(replace(/@@AppBuildEnv/g, gEnv.env.toUpperCase()))
+            .pipe(replace(/@@Api1Env/g, gEnv.api1))
+            .pipe(replace(/@@Api2Env/g, gEnv.api2))
+            .pipe(replace(/'@@ApiUseRegion'/g, gEnv.api1UseRegion.toString()))
+
+            .pipe(replace(/@@AngularLoggingEnabled/g, gEnv.angularLogging.toString()))
+            .pipe(replace(/@@AngularDebugEnabled/g, gEnv.angularDebug.toString()))
+
+            .pipe(replace(/@@AppDebugFlag/g, gEnv.debug.toString()))
+            .pipe(replace(/@@LocationUseHTML5/g, gEnv.html5Urls.toString()))
+            .pipe(replace(/@@AppAPI2ImageSearchFlag/g, gEnv.api2SearchEnabled.toString()))
+            .pipe(replace(/@@s3StaticUrl/g, gEnv.s3StaticUrl.toString()))
+            .pipe(replace(/@@ShoppingUrl/g, gEnv.shoppingUrl.toString()))
+            .pipe(replace(/@@AppVersion/g, gEnv.version))
+            .pipe(replace(/@@TrackJSApplication/g, gEnv.trackJS ? gEnv.trackJS.application : ''))
+            .pipe(replace(/@@GoogleAnalyticsKey/g, gEnv.ga ? gEnv.ga.trackingID : ''))
+            .pipe(replace(/@@PubNubSubscribeKey/g, gEnv.pubNub ? gEnv.pubNub.subscribeKey : ''))
+        .pipe(gulp.dest('./builds/debug/source/application/common/app/')));
+
+    return merge(lStreams);
+});
+
+//******************************************************
+//
+//   BUILD SUB-TASKS
+//
+//******************************************************
+
+
+
+/**
+ * Clean & Restore Project
+ */
+gulp.task('clean', function () {
+
+    require('fs').writeFileSync('./design3.appDesign/source/d3.r.less',
+     '//.LESS AUTO INCLUDE LIST\n//{\n//}\n');
+
+    require('fs').writeFileSync('./design3.appCanvas/source/d3.canvas.r.less',
+     '//.LESS AUTO INCLUDE LIST\n//{\n//}\n');
+
+    var lCleanTSRef = ['//.TS AUTO INCLUDE LIST',
+                       '/// <reference path="../../typings/index.d.ts" />',
+                       '/// <reference path="../../design3.appCommon/source/d3.common.r.ts" />',
+                       '/// <reference path="../../design3.appCanvas/source/d3.canvas.r.ts" />',
+                       '/// <reference path="../../design3.appDesign/source/d3.design.r.ts" />',
+                       '/// <reference path="../../design3.appInteractions/source/d3.interactions.r.ts" />',
+                       '/// <reference path="../../design3.appWebAPI/source/d3.web-api.r.ts" />',
+                       '/// <reference path="../../design3.appWebAPI2/source/d3.web-api2.r.ts" />',
+                       '//{',
+                       '//}', ''];
+
+    var lTSRef = lCleanTSRef.slice();
+    lTSRef.splice(4, 1);
+    require('fs').writeFileSync('./design3.appDesign/source/d3.design.r.ts', lTSRef.join('\n'));
+
+    lTSRef = lCleanTSRef.slice();
+    lTSRef.splice(5, 1);
+    require('fs').writeFileSync('./design3.appInteractions/source/d3.interactions.r.ts', lTSRef.join('\n'));
+
+    lTSRef = lCleanTSRef.slice();
+    lTSRef.splice(3, 1);
+    require('fs').writeFileSync('./design3.appCanvas/source/d3.canvas.r.ts', lTSRef.join('\n'));
+
+    lTSRef = lCleanTSRef.slice();
+    lTSRef.splice(6, 1);
+    require('fs').writeFileSync('./design3.appWebAPI/source/d3.web-api.r.ts', lTSRef.join('\n'));
+
+    lTSRef = lCleanTSRef.slice();
+    lTSRef.splice(7, 1);
+    require('fs').writeFileSync('./design3.appWebAPI2/source/d3.web-api2.r.ts', lTSRef.join('\n'));
+
+    lTSRef = lCleanTSRef.slice();
+    lTSRef.splice(2, 1);
+    require('fs').writeFileSync('./design3.appCommon/source/d3.common.r.ts', lTSRef.join('\n'));
+
+    //HACK TO RENAME A BOWER SCRIPT
+    gulp.src('./bower_components/raven-js/dist/plugins/angular.js')
+                    .pipe(rename('raven-angular.js'))
+                    .pipe(gulp.dest('./bower_components/raven-js/dist/plugins'));
+
+    var lDelFiles = gulp.src([
+            './builds/debug'
+            , './builds/release'
+            , './builds/temp'])
+        .pipe(vinylPaths(del));
+
+    return lDelFiles;
+});
+
+
+/**
+ * Clean Up Build Files left over from building prod
+ */
+gulp.task('clean:prod', function () {
+
+    var lDelFiles = gulp.src([
+            './builds/debug'
+            , './builds/release/js/*.concat.js'
+    ])
+        .pipe(vinylPaths(del));
+
+    return merge(lDelFiles);
+});
+
+/**
+ * Format Typescript Files
+ */
+gulp.task('all:typescript:format', function () {
+
+    return gulp.src(['./design3.appDesign/source/**/*.ts'
+                     , './design3.appInteractions/source/**/*.ts'
+                     , './design3.appCanvas/source/**/*.ts'
+                     , './design3.appCommon/source/**/*.ts'
+                     , './design3.appWebAPI/source/**/*.ts'
+                     //, './design3.appWebAPI2/source/**/*.ts'
+    ], { read: false })
+        //.pipe(checkFileName({
+        //    caseName: 'lowerCase'
+        //}))
+        .pipe(gitmodified(['added', 'modified', 'renamed', 'copied']))
+        .pipe(debug({ title: 'FORMAT:' }))
+        .pipe(exec('tsfmt -r "<%= file.path %>"'))
+        .pipe(exec.reporter());
+});
+
+/**
+ * Copy Files To Final Build Destination
+ */
+gulp.task('design3:copy:source-to-debug', function () {
+    
+    var lStreams = [];
+
+    //These are declared in one spot but uses a pattern for debug / prod release
+    // {<debug string>||< prod string>}
+    //Debug String will be used for a deploy that isn't considered prod
+    //Prod string will be used for a prod release
+    var lBowerScripts = [
+        'angular/angular{||.min}.js',
+        'angular-bootstrap/ui-bootstrap-tpls{||.min}.js',   //USE BOOTSTRAP TEMPLATES
+        'angular-ui-router/release/angular-ui-router{||.min}.js',
+        'angular-sanitize/angular-sanitize{||.min}.js',
+        'angular-animate/angular-animate{||.min}.js',
+        'angular-translate/angular-translate{||.min}.js',
+        'angular-translate-loader-static-files/angular-translate-loader-static-files{||.min}.js',
+        'angular-translate-once/src/translate-once.js',
+        'angular-cookies/angular-cookies{||.min}.js',
+        'angular-hotkeys/build/hotkeys{||.min}.js',
+        'angular-native-dragdrop/draganddrop{||.min}.js',
+        'angular-mocks/angular-mocks.js',
+        'lodash/dist/lodash{||.min}.js',
+        'gsap/src/{uncompressed||minified}/TweenMax{||.min}.js',
+        'gsap/src/{uncompressed||minified}/TimelineMax{||.min}.js',
+        'gsap/src/{uncompressed||minified}/plugins/ScrollToPlugin{||.min}.js',
+        'color-thief/src/color-thief.js',
+        'tinycolor/dist/tinycolor-min.js',
+        'angulartics/{src||dist}/angulartics{||.min}.js',
+        'angulartics-google-analytics/{lib||dist}/angulartics-google-analytics{||.min}.js',
+        'pubnub/dist/web/pubnub{||.min}.js',
+        'pubnub-angular/dist/pubnub-angular{||.min}.js',
+        'angularjs-slider/dist/rzslider{||.min}.js',
+        'angular-color-picker/dist/angularjs-color-picker{||.min}.js',
+        //'bowser/bowser.js' current bower not built from master (?)
+        //'ngInfiniteScroll/build/ng-infinite-scroll.js' at this time we are using an unreleased version of the github
+        //project included in our directives until they decide to update the project.
+    ];
+
+    resolvePaths(lBowerScripts);
+
+    lStreams.push(gulp.src(lBowerScripts, { cwd: 'bower_components/**' })
+        .pipe(rename({ dirname: '' }))
+        .pipe(gulpChanged('./builds/debug/source/library'))
+        .pipe(debug({ title: 'BOWER-JS:' }))
+        .pipe(gulp.dest('./builds/debug/source/library/')));
+
+    var lBowerStyles = [
+        'bootstrap/dist/css/bootstrap-theme.css',
+        'AngularJS-Toaster/toaster.min.css',
+        'angular-hotkeys/build/hotkeys.min.css',
+        'angularjs-slider/dist/rzslider.css',
+        'angular-color-picker/dist/angularjs-color-picker.css'];
+
+
+    lStreams.push(gulp.src(lBowerStyles, { cwd: 'bower_components/**' })
+        .pipe(rename({ dirname: '' }))
+        .pipe(gulpChanged('./builds/debug/styles/library'))
+        .pipe(debug({ title: 'BOWER-CSS:' }))
+        .pipe(gulp.dest('./builds/debug/styles/library/')));
+
+    var lBowerFonts = [
+        'bootstrap/fonts/*.{eot,svg,ttf,woff}',
+        'font-awesome/fonts/*.{eot,svg,ttf,woff,woff2}'];
+    lStreams.push(gulp.src(lBowerFonts, { cwd: 'bower_components/**' })
+        .pipe(rename({ dirname: '' }))
+        .pipe(gulpChanged('./builds/debug/fonts'))
+        .pipe(gulp.dest('./builds/debug/fonts/')));
+
+    var lCustomScripts = ['./ng-infinite-scroll-master.js', './ng-toaster-custom.js', './bowser.js', './userback.js'];
+    if (gEnv.newRelic) {
+        lCustomScripts.push('./new-relic.js');
+    }
+    lStreams.push(gulp.src(lCustomScripts, { cwd: './design3.appDesign/source/library2/**' })
+        .pipe(gulpChanged('./builds/debug/source/library2'))
+        .pipe(debug({ title: 'LIBRARY2:' }))
+        .pipe(gulp.dest('./builds/debug/source/library2/')));
+
+    var lApplicationIndex = ['./index.html', './web.config'];
+    lStreams.push(gulp.src(lApplicationIndex, { cwd: './design3.appDesign/source/**' })
+        .pipe(gulp.dest('./builds/debug/')));
+
+    // Cricut Fonts -> Pull from Style-Guide .Git Repo. folder named "style-guide"
+    var lApplicationFonts = [
+        '../../../../style-guide/styles/fonts/**/*.{eot,svg,ttf,woff,html}'];
+    //    'less/fonts/**/*.{eot,svg,ttf,woff}'];
+    lStreams.push(gulp.src(lApplicationFonts, { cwd: './design3.appDesign/source/**' })
+        .pipe(rename({ dirname: '' }))
+        .pipe(gulpChanged('./builds/debug/fonts'))
+        .pipe(gulpCount('<%= counter %> Fonts Copied From Style-Guide to builds/debug/fonts/'))
+        .pipe(gulp.dest('./builds/debug/fonts/')));
+
+    var lApplicationScripts = ['./**/*.ts', '!./**/*.spec.ts'];
+    lStreams.push(gulp.src(lApplicationScripts, { cwd: './design3.appDesign/source/**' })
+        .pipe(gulpChanged( './builds/debug/source/application/design'))
+        .pipe(gulp.dest('./builds/debug/source/application/design')));
+
+    var lApplicationTemplates = ['./**/tmpl-*.html'];
+    lStreams.push(gulp.src(lApplicationTemplates, { cwd: './design3.appDesign/source/**' })
+        .pipe(templateCache('template-cache.js', {
+            module: 'design3.appDesign',
+            transformUrl: function (url) {
+                return 'source/application/design/' + url;
+            }
+        }))
+        .pipe(gulp.dest('./builds/debug/source/application/design/template')));
+
+    var lApplicationImages = ['assets/images/*.{png,svg,gif}'];
+    lStreams.push(gulp.src(lApplicationImages, { cwd: './design3.appDesign/source/**' })
+        .pipe(gulpChanged('./builds/debug/source/application/design'))
+        .pipe(gulp.dest('./builds/debug/source/application/design')));
+
+    var lFavicons = ['assets/favicons/*'];
+    lStreams.push(gulp.src(lFavicons, { cwd: './design3.appDesign/source/**'})
+        .pipe(gulpChanged('./builds/debug/source/application/design'))
+        .pipe(gulp.dest('./builds/debug/source/application/design')));
+    
+    return merge(lStreams);
+    
+});
+
+/**
+ * Copy Files To Final Build Destination
+ */
+gulp.task('interactions:copy:source-to-debug', function () {
+    var lStreams = [];
+
+    //TYPESCRIPT FILES
+    var lApplicationScripts = ['./**/*.ts', '!./**/*.spec.ts'];
+    lStreams.push(gulp.src(lApplicationScripts, { cwd: './design3.appInteractions/source/**' })
+                    .pipe(gulpChanged( './builds/debug/source/application/interactions'))
+                    .pipe(gulp.dest('./builds/debug/source/application/interactions')));
+
+    var lApplicationTemplates = ['./**/tmpl-*.html'];
+    lStreams.push(gulp.src(lApplicationTemplates, { cwd: './design3.appInteractions/source/**' })
+        .pipe(templateCache('template-cache.js', {
+            module: 'design3.appInteractions',
+            transformUrl: function (url) {
+                return 'source/application/interactions/' + url;
+            }
+        }))
+        .pipe(gulp.dest('./builds/debug/source/application/interactions/template')));
+
+    return merge(lStreams);
+});
+
+/**
+ * Copy Files To Final Build Destination
+ */
+gulp.task('canvas:copy:source-to-debug', function () {
+    var lStreams = [];
+
+    //TYPESCRIPT FILES
+    var lApplicationScripts = ['./**/*.ts', '!./**/*.spec.ts'];
+    lStreams.push(gulp.src(lApplicationScripts, { cwd: './design3.appCanvas/source/**' })
+        .pipe(gulpChanged( './builds/debug/source/application/canvas'))
+        .pipe(gulp.dest('./builds/debug/source/application/canvas')));
+
+
+    var lApplicationTemplates = ['./**/tmpl-*.html'];
+    lStreams.push(gulp.src(lApplicationTemplates, { cwd: './design3.appCanvas/source/**' })
+        .pipe(templateCache('template-cache.js', {
+            module: 'design3.appCanvas',
+            transformUrl: function (url) {
+                return 'source/application/canvas/' + url;
+            }
+        }))
+        .pipe(gulp.dest('./builds/debug/source/application/canvas/template')));
+
+    return merge(lStreams);
+});
+
+/**
+ * Copy Files To Final Build Destination
+ */
+gulp.task('common:copy:source-to-debug', function () {
+    var lStreams = [];
+
+    //TYPESCRIPT FILES
+    var lApplicationScripts = ['./**/*.ts', '!./**/*.spec.ts', '!./app/app-settings.ts'];
+    lStreams.push(gulp.src(lApplicationScripts, { cwd: './design3.appCommon/source/**' })
+        .pipe(gulpChanged( './builds/debug/source/application/common'))
+        .pipe(debug({title: 'Common:copy:source-to-debug'}))
+        .pipe(gulp.dest('./builds/debug/source/application/common')));
+
+    var lSettingsScripts = ['./app/app-settings.ts'];
+    lStreams.push(gulp.src(lSettingsScripts, { cwd: './design3.appCommon/source/**' })
+        .pipe(debug({title: 'Common:copy:source-to-debug:settings'}))
+        .pipe(gulp.dest('./builds/debug/source/application/common')));
+
+    var lApplicationTemplates = ['./**/tmpl-*.html'];
+    lStreams.push(gulp.src(lApplicationTemplates, { cwd: './design3.appCommon/source/**' })
+        .pipe(templateCache('template-cache.ts', {
+            module: 'design3.appCommon',
+            templateHeader: '/* tslint:disable:max-line-length */\r\nnamespace d3.appCommon {\r\n\t\'use strict\';\r\n\texport class TemplateCache {\r\n',
+            templateBody: '\t\tpublic static get <%= url %>(): string { return \'<%= contents %>\'; }\r\n',
+            templateFooter: '\t}\r\n}\r\n',
+            transformUrl: function (url) {
+                return path.basename(url, path.extname(url)).replace(/-/g, '_');
+            }
+        }))
+        .pipe(gulp.dest('./design3.appCommon/source/template'))
+        .pipe(exec('tsfmt -r ./design3.appCommon/source/template/template-cache.ts')));
+
+
+    //TRANSLATION FILES
+    var lApplicationTemplates = ['./i18n/*.json'];
+    lStreams.push(gulp.src(lApplicationTemplates, { cwd: './design3.appCommon/source/**' })
+        .pipe(rename({
+            suffix: gEnv.version,
+            extname: '.json'
+        }))
+        .pipe(gulp.dest('./builds/debug/source/application/common')));
+
+    return merge(lStreams);
+});
+
+/**
+ * Copy Files To Final Build Destination
+ */
+gulp.task('web-api:copy:source-to-debug', function () {
+    var lStreams = [];
+
+    //TYPESCRIPT FILES
+    var lApplicationScripts = ['./**/*.ts', '!./**/*.spec.ts'];
+    lStreams.push(gulp.src(lApplicationScripts, { cwd: './design3.appWebAPI/source/**' })
+        .pipe(gulpChanged( './builds/debug/source/application/web-api'))
+        .pipe(gulp.dest('./builds/debug/source/application/web-api')));
+
+    return merge(lStreams);
+});
+
+/**
+ * Copy Files To Final Build Destination
+ */
+gulp.task('web-api2:copy:source-to-debug', function () {
+    var lStreams = [];
+
+    //TYPESCRIPT FILES
+    var lApplicationScripts = ['./**/*.ts', '!./**/*.spec.ts'];
+    lStreams.push(gulp.src(lApplicationScripts, { cwd: './design3.appWebAPI2/source/**' })
+        .pipe(gulpChanged( './builds/debug/source/application/web-api2'))
+        .pipe(debug({title: 'web-api2:copy:source-to-debug'}))
+        .pipe(gulp.dest('./builds/debug/source/application/web-api2')));
+
+    return merge(lStreams);
+});
+
+/**
+ * Copy select files from debug over to serve on prod
+ * These are files that don't need to be minifed or uglified or concatenated
+ */
+gulp.task('all:copy:debug-to-prod', function () {
+    var lStreams = [];
+
+    //Move index file over
+    lStreams.push(
+        gulp.src('index.html', {
+            cwd: './builds/debug/'
+        })
+        .pipe(gulp.dest('./builds/release'))
+    )
+
+    //Move fonts over
+    lStreams.push(
+        gulp.src('fonts/*', {
+            cwd: './builds/debug/'
+        })
+        .pipe(gulp.dest('./builds/release/fonts'))
+    )
+
+    //Move assets
+    lStreams.push(
+        gulp.src('./builds/debug/source/application/design/assets/**/*', {
+            cwd: '.'
+        })
+        .pipe(gulp.dest('./builds/release/assets/'))
+    )
+
+    //Move translation files
+    lStreams.push(
+        gulp.src('source/application/common/i18n/*', {
+            cwd: './builds/debug/'
+        })
+        .pipe(gulp.dest('./builds/release/i18n/'))
+    )
+
+    return merge(lStreams);
+});
+
+/**
+ * Lint Typescript.
+ */
+gulp.task('design3:lint:typescript', function () {
+    return gulp.src('./design3.appDesign/source/**/*.ts', { base: './design3.appDesign/source/' })
+        .pipe(gulpChanged( './builds/debug/source/application/design'))
+        .pipe(tslint({
+            formatter: "prose"
+        }))
+        .pipe(tslint.report({
+            reportLimit: 20,
+            emitError: true
+        }));
+});
+
+gulp.task('interactions:lint:typescript', function () {
+    return gulp.src('./design3.appInteractions/source/**/*.ts', { base: './design3.appInteractions/source/' })
+        .pipe(gulpChanged( './builds/debug/source/application/interactions'))
+        .pipe(tslint({
+            formatter: "prose"
+        }))
+        .pipe(tslint.report({
+            reportLimit: 20,
+            emitError: true
+        }));
+});
+
+gulp.task('canvas:lint:typescript', function () {
+    return gulp.src('./design3.appCanvas/source/**/*.ts', { base: './design3.appCanvas/source/' })
+        .pipe(gulpChanged( './builds/debug/source/application/canvas'))
+        .pipe(tslint({
+            formatter: "prose"
+        }))
+        .pipe(tslint.report({
+            reportLimit: 20,
+            emitError: true
+        }));
+});
+
+gulp.task('common:lint:typescript', function () {
+    return gulp.src('./design3.appCommon/source/**/*.ts', { base: './design3.appCommon/source/' })
+        .pipe(gulpChanged( './builds/debug/source/application/common'))
+        .pipe(tslint({
+            formatter: "prose"
+        }))
+        .pipe(tslint.report({
+            reportLimit: 20,
+            emitError: true
+        }));
+});
+
+gulp.task('web-api:lint:typescript', function () {
+    return gulp.src('./design3.appWebAPI/source/**/*.ts', { base: './design3.appWebAPI/source/' })
+        .pipe(gulpChanged( './builds/debug/source/application/web-api'))
+        .pipe(tslint({
+            formatter: "prose"
+        }))
+        .pipe(tslint.report({
+            reportLimit: 20,
+            emitError: true
+        }));
+});
+
+/**
+ * Generates the d3.r.less references file dynamically from all application *.less files.
+ */
+gulp.task('design3:less:reference-file', function () {
+    var target = gulp.src('./design3.appDesign/source/d3.r.less');
+    var sources = gulp.src(['directives/**/*.less', 'routes/**/*.less', 'views/**/*.less'], { read: false, cwd: './design3.appDesign/source/' }).pipe(sort());
+    return target.pipe(inject(sources, {
+        starttag: '//{',
+        endtag: '//}',
+        transform: function (filepath) {
+            return '@import ".' + filepath + '";';
+        }
+    })).pipe(gulpCount('## Less File(s) Copied!'))
+        .pipe(gulp.dest('./design3.appDesign/source/'));
+});
+
+/**
+ * Generates the d3.canvas.r.less references file dynamically from all canvas *.less files.
+ */
+gulp.task('canvas:less:reference-file', function () {
+    var target = gulp.src('./design3.appCanvas/source/d3.canvas.r.less');
+    var sources = gulp.src(['directives/**/*.less', 'routes/**/*.less', 'views/**/*.less'], { read: false, cwd: './design3.appCanvas/source/' }).pipe(sort());
+    return target.pipe(inject(sources, {
+        starttag: '//{',
+        endtag: '//}',
+        transform: function (filepath) {
+            return '@import ".' + filepath + '";';
+        }
+    })).pipe(gulpCount('## Less File(s) Copied!'))
+        .pipe(gulp.dest('./design3.appCanvas/source/'));
+});
+
+/**
+ * Generates the d3.r.ts references file dynamically from all application *.ts files.
+ * TODO: this is the last bit for gulp slimming
+ * Only write file when content is different
+ */
+var fnTypescriptReferenceFile = function (inSourceDir, inTargetFile) {
+    var intTarget = gulp.src("{0}/{1}".format(inSourceDir, inTargetFile));
+    var intSources = gulp.src(['**/*.ts', "!**/{0}".format(inTargetFile)], { read: false, cwd: inSourceDir }).pipe(sort());
+    return intTarget
+        .pipe(inject(intSources, {
+            starttag: '//{',
+            endtag: '//}',
+            transform: function (filepath) {
+                return '/// <reference path=".' + filepath + '" />';
+            }
+        }))
+        .pipe(gulp.dest(inSourceDir));
+};
+
+gulp.task('design3:typescript:reference-file', function () {
+    return fnTypescriptReferenceFile('./design3.appDesign/source/', 'd3.design.r.ts');
+});
+
+gulp.task('interactions:typescript:reference-file', function () {
+    return fnTypescriptReferenceFile('./design3.appInteractions/source/', 'd3.interactions.r.ts');
+});
+
+gulp.task('canvas:typescript:reference-file', function () {
+    return fnTypescriptReferenceFile('./design3.appCanvas/source/', 'd3.canvas.r.ts');
+});
+
+gulp.task('common:typescript:reference-file', function () {
+    return fnTypescriptReferenceFile('./design3.appCommon/source/', 'd3.common.r.ts');
+});
+
+gulp.task('web-api:typescript:reference-file', function () {
+    return fnTypescriptReferenceFile('./design3.appWebAPI/source/', 'd3.web-api.r.ts');
+});
+
+gulp.task('web-api2:typescript:reference-file', function () {
+    return fnTypescriptReferenceFile('./design3.appWebAPI2/source/', 'd3.web-api2.r.ts');
+});
+
+/**
+ * Compile typescript.
+ */
+gulp.task('design3:typescript:build', function () {
+    return gulp.src(['./design3.appDesign/source/**/*.ts', '!./design3.appDesign/source/**/*.spec.ts', '!./design3.appDesign/source/*.r.ts' ], { base: './design3.appDesign/source/' })
+        .pipe(gulpChanged( './builds/debug/source/application/design', {extension: '.js'}))
+        .pipe(gulpCount('<%= counter %> Files changed design3:typescript:build'))
+        .pipe(debug({title: 'Design3'}))
+        .pipe(sourcemaps.init())
+        //--noUnusedLocals
+        .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+        .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+        .pipe(gulp.dest('./builds/debug/source/application/design'));
+});
+
+gulp.task('interactions:typescript:build', function () {
+    return gulp.src(['./design3.appInteractions/source/**/*.ts', '!./design3.appInteractions/source/**/*.spec.ts', '!./design3.appInteractions/source/*.r.ts'], { base: './design3.appInteractions/source/' })
+       .pipe(gulpChanged( './builds/debug/source/application/interactions', {extension: '.js'}))
+       .pipe(gulpCount('<%= counter %> Files changed interactions:typescript:build'))
+       .pipe(debug({title: 'Interactions'}))
+       .pipe(sourcemaps.init())
+       .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+       .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+       .pipe(gulp.dest('./builds/debug/source/application/interactions'));
+});
+
+gulp.task('canvas:typescript:build', function () {
+    return gulp.src(['./design3.appCanvas/source/**/*.ts', '!./design3.appCanvas/source/**/*.spec.ts', '!./design3.appCanvas/source/*.r.ts'] , { base: './design3.appCanvas/source/' })
+       .pipe(gulpChanged( './builds/debug/source/application/canvas', {extension: '.js'}))
+       .pipe(gulpCount('<%= counter %> Files changed canvas:typescript:build'))
+       .pipe(debug({title: 'Canvas'}))
+       .pipe(sourcemaps.init())
+       .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+       .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+       .pipe(gulp.dest('./builds/debug/source/application/canvas'));
+});
+
+gulp.task('common:typescript:build', function () {
+    var lStreams = [];
+
+    lStreams.push(gulp.src(['./design3.appCommon/source/**/*.ts', '!./design3.appCommon/source/app/app-settings.ts', '!./design3.appCommon/source/**/*.spec.ts', '!./design3.appCommon/source/*.r.ts', '!./design3.appCommon/source/**/*.d.ts'], { base: './design3.appCommon/source/' })
+       .pipe(gulpChanged( './builds/debug/source/application/common', {extension: '.js'}))
+       .pipe(gulpCount('<%= counter %> Files changed common:typescript:build'))
+       .pipe(debug({title: 'common'}))
+       .pipe(sourcemaps.init())
+       .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+       .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+       .pipe(gulp.dest('./builds/debug/source/application/common'))
+    );
+
+    //We always have to move app-settings over so that it's fresh and gets replaced every time
+    lStreams.push(gulp.src([ './design3.appCommon/source/app/app-settings.ts'], { base: './design3.appCommon/source/' })
+       .pipe(sourcemaps.init())
+       .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+       .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+       .pipe(gulp.dest('./builds/debug/source/application/common'))
+    );
+
+    return lStreams;
+});
+
+gulp.task('web-api:typescript:build', function () {
+    return gulp.src(['./design3.appWebAPI/source/**/*.ts', '!./design3.appWebAPI/source/**/*.spec.ts', '!./design3.appWebAPI/source/*.r.ts'], { base: './design3.appWebAPI/source/' })
+       .pipe(gulpChanged( './builds/debug/source/application/web-api', {extension: '.js'}))
+       .pipe(gulpCount('<%= counter %> Files changed web-api:typescript:build'))
+       .pipe(debug({title: 'web-api'}))
+       .pipe(sourcemaps.init())
+       .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+       .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+       .pipe(gulp.dest('./builds/debug/source/application/web-api'));
+});
+
+gulp.task('web-api2:typescript:build', function () {
+    return gulp.src(['./design3.appWebAPI2/source/**/*.ts', '!./design3.appWebAPI2/source/**/*.spec.ts', '!./design3.appWebAPI2/source/*.r.ts'], { base: './design3.appWebAPI2/source/' })
+       .pipe(gulpChanged( './builds/debug/source/application/web-api2', {extension: '.js'}))
+       .pipe(gulpCount('<%= counter %> Files changed web-api2:typescript:build'))
+       .pipe(debug({title: 'web-api2'}))
+       .pipe(sourcemaps.init())
+       .pipe(ts({ noImplicitAny: true, target: 'ES5', noEmitOnError: true }, ts.reporter.longReporter()))
+       .js.pipe(sourcemaps.write('./', { includeContent: false, sourceRoot: './' }))
+       .pipe(gulp.dest('./builds/debug/source/application/web-api2'));
+});
+
+/**
+ * Build Bower LESS Files
+ */
+gulp.task('design3:less:build', function () {
+    var lFontAwesomeStream = gulp.src('./design3.appDesign/source/less/font-awesome.less')
+    .pipe(less())
+    .pipe(gulp.dest('./builds/debug/styles/library/'));
+
+    var lCricutIconsStream = gulp.src('../style-guide/styles/fonts/**/cricut-icons.less')
+    .pipe(less())
+    .pipe(rename({ dirname: '' }))
+    .pipe(replace('styles/fonts/CricutIcons/', '../../fonts/'))
+    .pipe(gulp.dest('./builds/debug/styles/library/'));
+
+    var lBootstrapStream = gulp.src('./design3.appDesign/source/less/bootstrap.less')
+    .pipe(less())
+    .pipe(gulp.dest('./builds/debug/styles/library/'));
+
+    var lDesign3Stream = gulp.src('./design3.appDesign/source/less/design3.less')
+    .pipe(less())
+    .pipe(gulp.dest('./builds/debug/styles/application'));
+
+    return merge(lFontAwesomeStream, lCricutIconsStream, lBootstrapStream, lDesign3Stream);
+});
+
+
+/**
+ *  Minify the LESS CSS files into a single CSS file
+ *
+ */
+gulp.task('all:minify:less', function () {
+    //We first include library files and then our application file so that it can overwrite if necessary
+    return gulp.src([
+            './builds/debug/styles/library/bootstrap.css',
+            './builds/debug/styles/library/**/*.css',
+            './builds/debug/styles/application/design3.css'
+    ])
+        .pipe(concat('application.concat.css'))
+        .pipe(cssmin())
+        .pipe(rename({
+            suffix: '.min',
+            extname: '.css',
+            basename: 'application'
+        }))
+        .pipe(gulp.dest('./builds/release/css'));
+});
+
+gulp.task('all:miniuglify:js', function () {
+    //Library first
+    //Order is very important for files not grabbed by wildcards at the end.
+    var lLibraryStream = gulp.src([
+        './builds/debug/source/library/angular.min.js',
+        './builds/debug/source/library/angular-translate.min.js',
+        './builds/debug/source/library/raven.js',
+        './builds/debug/source/library/tinycolor-min.js',
+        './builds/debug/source/library/!(angular-mocks)*.js',
+        './builds/debug/source/library2/*.js'])
+        .pipe(sourcemaps.init({ loadMaps: true }))
+        .pipe(concat('library.concat.js'))
+        .pipe(gulp.dest('./builds/release/js'))
+        .pipe(rename({
+            suffix: '.min',
+            extname: '.js',
+            basename: 'library'
+        }))
+        .pipe(uglify({
+            mangle: false,
+            compress: false,
+            output: {
+                beautify: false
+            }
+        }))
+        .pipe(sourcemaps.write('.'))
+        .pipe(gulp.dest('./builds/release/js'));
+
+    //Then all of our stuff
+    var lApplicationJs = [];
+    Array.prototype.push.apply(lApplicationJs, fnInjectPaths('common'));
+    Array.prototype.push.apply(lApplicationJs, fnInjectPaths('web-api'));
+    Array.prototype.push.apply(lApplicationJs, fnInjectPaths('web-api2'));
+    Array.prototype.push.apply(lApplicationJs, fnInjectPaths('interactions'));
+    Array.prototype.push.apply(lApplicationJs, fnInjectPaths('canvas'));
+    Array.prototype.push.apply(lApplicationJs, fnInjectPaths('design'));
+
+    var lApplicationStream = gulp.src(lApplicationJs)
+        .pipe(sourcemaps.init({ loadMaps: true }))
+        .pipe(concat('application.concat.js'))
+        .pipe(ngAnnotate())
+        .pipe(gulp.dest('./builds/release/js'))
+        .pipe(rename({
+            suffix: '.min',
+            extname: '.js',
+            basename: 'application'
+        }))
+        .pipe(uglify({
+            mangle: {
+                except: ['angular', '$'],
+                keep_fnames: true
+            },
+            //mangle: false,
+            compress: false,
+            output: {
+                beautify: false
+            }
+        }).on('error', function (e) {
+            console.log(e);
+        }))
+        //.pipe(sourcemaps.write('.',{includeContent: false}))
+        .pipe(sourcemaps.write('.'))
+        .pipe(gulp.dest('./builds/release/js'));
+
+    return merge(lLibraryStream, lApplicationStream)
+});
+
+
+/**
+ * Inject Application Files
+ */
+var fnInjectPaths = function (inSourceDir) {
+    var lSourcePaths = [];
+    lSourcePaths.push('./builds/debug/source/application/{0}/*.js'.format(inSourceDir));
+    lSourcePaths.push('./builds/debug/source/application/{0}/app/app-settings.js'.format(inSourceDir));
+    lSourcePaths.push('./builds/debug/source/application/{0}/**/app-!(module)*.js'.format(inSourceDir));
+    lSourcePaths.push('./builds/debug/source/application/{0}/**/*-base.js'.format(inSourceDir));
+    lSourcePaths.push('./builds/debug/source/application/{0}/**/!(app-module|template-cache)*.js'.format(inSourceDir));
+    lSourcePaths.push('./builds/debug/source/application/{0}/**/app-module.js'.format(inSourceDir));
+    lSourcePaths.push('./builds/debug/source/application/{0}/**/template-cache.js'.format(inSourceDir));
+
+    return lSourcePaths;
+};
+
+gulp.task('all:inject-html:debug', function () {
+    var target = gulp.src('./builds/debug/index.html');
+
+    var appSourcePath = [];
+    Array.prototype.push.apply(appSourcePath, fnInjectPaths('common'));
+    Array.prototype.push.apply(appSourcePath, fnInjectPaths('web-api'));
+    Array.prototype.push.apply(appSourcePath, fnInjectPaths('web-api2'));
+    Array.prototype.push.apply(appSourcePath, fnInjectPaths('interactions'));
+    Array.prototype.push.apply(appSourcePath, fnInjectPaths('canvas'));
+    Array.prototype.push.apply(appSourcePath, fnInjectPaths('design'));
+
+    Array.prototype.push.apply(appSourcePath, ['./builds/debug/styles/application/**/*.css']);
+
+    var appSources = gulp.src(appSourcePath, { read: false });
+
+    var libSources = gulp.src([
+        
+        './builds/debug/source/library/angular.js',
+        './builds/debug/source/library/angular-ui-router.js',
+        './builds/debug/source/library/ui-bootstrap.js',
+        './builds/debug/source/library/angular-translate.js',
+        './builds/debug/source/library/raven.js',
+        './builds/debug/source/library/angulartics.js',
+        './builds/debug/source/library/pubnub.js',
+        './builds/debug/source/library/pubnub-angular.js',
+        './builds/debug/source/library/tinycolor-min.js',
+        './builds/debug/source/library/**/!(angular-mocks)*.js',
+        './builds/debug/source/library2/**/*.js',
+        './builds/debug/styles/library/bootstrap.css',
+        './builds/debug/styles/library/**/*.css'], { read: false });
+
+    return target.pipe(inject(appSources, {
+        name: 'application', addRootSlash: false, relative: true,
+        transform: function (filepath) {
+            arguments[0] = filepath + '?v=' + gEnv.version;
+            return inject.transform.apply(inject.transform, arguments);
+        }
+    }))
+        .pipe(inject(libSources, {
+            name: 'library', addRootSlash: false, relative: true,
+            transform: function (filepath) {
+                arguments[0] = filepath + '?v=' + gEnv.version;
+                return inject.transform.apply(inject.transform, arguments);
+            }
+        }))
+        .pipe(gulp.dest('./builds/debug'))
+        .pipe(gulpNotify("Gulp build complete"));
+});
+
+
+gulp.task('all:inject-trackjs', function(){
+    var lApplication = gEnv.trackJS.application;
+    var lToken = gEnv.trackJS.token;
+
+    return gulp.src(['./builds/debug/index.html', './builds/release/index.html'], { base: './builds' })
+             .pipe(inject(gulp.src(''), {
+                 starttag: '<!-- trackjs -->',
+                 transform: function(){
+                     var lScripts = `<script type="text/javascript">window._trackJs = { token: '${lToken}', application: '${lApplication}' };</script>\n`;
+                     lScripts += `    <script type="text/javascript" src="https://cdn.trackjs.com/releases/current/tracker.js"></script>`;
+                     return lScripts;
+                 },
+                 empty: true
+             }))
+             .pipe(gulp.dest('./builds'));
+
+});
+
+gulp.task('all:inject-html:prod', function () {
+    var target = gulp.src('./builds/release/index.html');
+
+    var appSourcePath = ['./builds/release/js/application.min.js'];
+
+    Array.prototype.push.apply(appSourcePath, ['./builds/release/css/application.min.css']);
+
+    var appSources = gulp.src([
+        './builds/release/js/application.min.js',
+        './builds/release/css/application.min.css'
+    ], { read: false });
+
+    var libSources = gulp.src([
+        './builds/release/js/library.min.js'
+        //'./builds/debug/styles/library/bootstrap.css',
+    ], { read: false });
+
+    return target.pipe(inject(appSources, {
+        name: 'application', addRootSlash: false, relative: true,
+        transform: function (filepath) {
+            arguments[0] = filepath + '?v=' + gEnv.version;
+            return inject.transform.apply(inject.transform, arguments);
+        }
+    }))
+        .pipe(inject(libSources, {
+            name: 'library', addRootSlash: false, relative: true,
+            transform: function (filepath) {
+                arguments[0] = filepath + '?v=' + gEnv.version;
+                return inject.transform.apply(inject.transform, arguments);
+            }
+        }))
+        .pipe(gulp.dest('./builds/release'));
+});
+
+/**
+ * Update sourcemaps with correct path.
+ */
+gulp.task('all:sourcemaps:update', function () {
+    return gulp.src('./builds/debug/source/application/**/*.map')
+        .pipe(replace(/("sources":\[")(.*\/)(.*?\.ts)("\])/g, '$1$3$4'))
+        .pipe(replace(/("file":")(.*\/)(.*?\.js)(")/g, '$1$3$4'))
+        .pipe(replace(/("sourceRoot":")(.*\/)(")/g, '$1$3'))
+        .pipe(gulp.dest('./builds/debug/source/application/'));
+});
+
+/**
+ * Update Prod files with simplified prod paths.
+ */
+gulp.task('all:release-paths:update', function () {
+
+    var lCssStream = gulp.src('./builds/release/css/**/*.css')
+        .pipe(replace('../../fonts', '../fonts'))
+        .pipe(gulp.dest('./builds/release/css/'));
+
+    var lJsStream = gulp.src('./builds/release/js/**/*.js')
+        .pipe(replace('/source/application/design/assets/', '/assets/'))
+        .pipe(replace('/source/application/common/i18n/', '/i18n/'))
+        .pipe(gulp.dest('./builds/release/js/'));
+
+
+    var lHtmlStream = gulp.src('./builds/release/*.html')
+        .pipe(replace('/source/application/design/assets/', '/assets/'))
+        .pipe(gulp.dest('./builds/release/'));
+
+
+    return merge(lCssStream, lJsStream, lHtmlStream);
+});
+
+gulp.task('design3:settings:aws-cache', function () {
+    var dest = 'debug';
+
+    if (gEnv.minify) {
+        dest = 'release';
+    }
+
+    return gulp.src(['./s3-invalidation.json'])
+        .pipe(replace(/@@AppVersion/g, gEnv.version))
+        .pipe(gulp.dest('./builds/' + dest + '/'));
+});
+
+gulp.task("all:typedoc", function () {
+    return gulp
+        .src(['./design3.appCommon/source/**/*.ts'
+            //, './design3.appWebAPI/source/**/*.ts'
+        ])
+        .pipe(concat('d3.ts'))
+        .pipe(replace(/\/\/\/ <reference.*/g, ''))
+        .pipe(replace(/\/\/.TS AUTO INCLUDE LIST/g, '/// <reference path="../../typings/index.d.ts" />'))
+        .pipe(gulp.dest('./builds/temp'))
+        .pipe(typedoc({
+            module: "commonjs",
+            target: "es5",
+            out: "docs/",
+            name: "Cricut DesignSpace 3.0"
+        }))
+    ;
+});
+
+if (!String.prototype.format) {
+    String.prototype.format = function () {
+        var formatted = this;
+        for (var i = 0; i < arguments.length; i++) {
+            var regexp = new RegExp('\\{' + i + '\\}', 'gi');
+            formatted = formatted.replace(regexp, arguments[i]);
+        }
+        return formatted;
+    };
+}
+
+function fnGetVersion(inMajorVersion) {
+    return inMajorVersion.concat(".").concat(gitRev.short()).toUpperCase();
+};
+
+var fnGetRelease = function () {
+    var lReleaseEnv = false;
+    var lHost = argv.host || 'local';
+
+    if (lHost === 'production' ||
+        lHost.indexOf('test') > -1 ||
+        lHost.indexOf('beta') > -1 ||
+        argv.release === 'true') {
+        lReleaseEnv = true;
+    }
+    return lReleaseEnv;
+}
+
+
+function resolvePaths(inPaths) {
+    var lTakeIndex;
+
+    if (gEnv.minify) {
+        lTakeIndex = 1;
+    } else {
+        lTakeIndex = 0;
+    }
+
+    inPaths.forEach((lPath, index) => {
+        //Search for our pattern
+        var lMatch = lPath.match(/{[a-z\|\.]*}/g)
+        if (lMatch) {
+            //gulpUtil.log(lPath);
+            //strip off ends
+            lMatch.forEach((match, index) => {
+                var token = match.slice(1, match.length - 1);
+                var lSplit = token.split('||');
+                var lIndexOfMatch = lPath.indexOf(match);
+                lPath = lPath.slice(0, lIndexOfMatch) + lSplit[lTakeIndex] + lPath.slice(lIndexOfMatch + match.length);
+
+            })
+            inPaths[index] = lPath;
+            //gulpUtil.log('Resolved Path: ', lPath);
+        }
+        //ignore if no matches
+    });
+}
